@@ -141,6 +141,12 @@ public class BrushOptionsCommands extends MethodCommands {
         String baseCmd = Commands.getAlias(BrushCommands.class, "brush") + " " + Commands.getAlias(BrushOptionsCommands.class, "loadbrush");
         File dir = MainUtil.getFile(Fawe.imp().getDirectory(), "brushes");
         UtilityCommands.list(dir, actor, args, page, null, true, baseCmd);
+//                new RunnableVal2<Message, String[]>() {
+//            @Override
+//            public void run(Message msg, String[] info) {
+//
+//            }
+//        });
     }
 
     @Command(
