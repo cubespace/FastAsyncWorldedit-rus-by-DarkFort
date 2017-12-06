@@ -88,6 +88,10 @@ public class DiskOptimizedClipboard extends FaweClipboard implements Closeable {
         }
     }
 
+    public File getFile() {
+        return file;
+    }
+
     private void init() throws IOException {
         if (this.fc == null) {
             this.fc = braf.getChannel();
