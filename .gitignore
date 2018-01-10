@@ -32,4 +32,9 @@ build
 spigot-1.10
 wiki_permissions.md
 /textures
+<<<<<<< HEAD
 core/src/main/java/com/sk89q/worldedit/util/command/parametric/ParametricCallable.java
+=======
+*.iml
+/obj
+>>>>>>> 274bc6d9a768819b347e2a3d502bbed1909bfcfc

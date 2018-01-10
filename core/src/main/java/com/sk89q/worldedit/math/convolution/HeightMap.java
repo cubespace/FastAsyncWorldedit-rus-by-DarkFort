@@ -25,6 +25,7 @@ public class HeightMap {
 
     private final boolean layers;
     private int[] data;
+    private boolean[] invalid;
     private int width;
     private int height;
 
@@ -62,12 +63,12 @@ public class HeightMap {
         int minZ = region.getMinimumPoint().getBlockZ();
         int maxY = region.getMaximumPoint().getBlockY();
 
+        data = new int[width * height];
+        invalid = new boolean[data.length];
+
         if (layers) {
             Vector min = region.getMinimumPoint();
             Vector max = region.getMaximumPoint();
-            int width = region.getWidth();
-            int height = region.getLength();
-            data = new int[width * height];
             int bx = min.getBlockX();
             int bz = min.getBlockZ();
             Iterable<Vector2D> flat = Regions.asFlatRegion(region).asFlatRegion();
@@ -83,15 +84,36 @@ public class HeightMap {
             }
         } else {
             // Store current heightmap data
-            data = new int[width * height];
-            for (int z = 0; z < height; ++z) {
-                for (int x = 0; x < width; ++x) {
-                    data[z * width + x] = session.getHighestTerrainBlock(x + minX, z + minZ, minY, maxY, naturalOnly);
+            int index = 0;
+            if (naturalOnly) {
+                for (int z = 0; z < height; ++z) {
+                    for (int x = 0; x < width; ++x, index++) {
+                        data[index] = session.getHighestTerrainBlock(x + minX, z + minZ, minY, maxY, naturalOnly);
+                    }
+                }
+            } else {
+                int yTmp = 255;
+                for (int z = 0; z < height; ++z) {
+                    for (int x = 0; x < width; ++x, index++) {
+                        yTmp = session.getNearestSurfaceTerrainBlock(x + minX, z + minZ, yTmp, minY, maxY, Integer.MIN_VALUE, Integer.MAX_VALUE);
+                        switch (yTmp) {
+                            case Integer.MIN_VALUE:
+                                yTmp = minY;
+                                invalid[index] = true;
+                                break;
+                            case Integer.MAX_VALUE:
+                                yTmp = maxY;
+                                invalid[index] = true;
+                                break;
+                        }
+                        data[index] = yTmp;
+                    }
                 }
             }
         }
     }
 
+    @Deprecated
     public HeightMap(EditSession session, Region region, int[] data, boolean layers) {
         this.session = session;
         this.region = region;
@@ -125,18 +147,7 @@ public class HeightMap {
         return layers ? applyLayers(newData) : apply(newData);
     }
 
-//    TODO
-//    public int averageFilter(int iterations) throws WorldEditException {
-//        Vector min = region.getMinimumPoint();
-//        Vector max = region.getMaximumPoint();
-//        int shift = layers ? 3 : 0;
-//        AverageHeightMapFilter filter = new AverageHeightMapFilter(data, width, height, min.getBlockY() << shift, max.getBlockY() << shift);
-//        int[] newData = filter.filter(iterations);
-//        return layers ? applyLayers(newData) : apply(newData);
-//    }
-
     public int applyLayers(int[] data) throws WorldEditException {
-        System.out.println("Layers");
         checkNotNull(data);
 
         Vector minY = region.getMinimumPoint();
@@ -154,10 +165,33 @@ public class HeightMap {
         // Apply heightmap
         int maxY4 = maxY << 4;
         int index = 0;
+
+        if (!session.hasExtraExtents()) {
+            // TODO fast change height
+//                int chunkZLen = (height + 15) >> 4;
+//                int chunkXLen = (width + 15) >> 4;
+//                FaweQueue queue = session.getQueue();
+//                if (queue instanceof MappedFaweQueue) {
+//                    MappedFaweQueue mfq = (MappedFaweQueue) queue;
+//                    for (int cz = 0; cz < chunkZLen; cz++) {
+//                        for (int cx = 0; cx < chunkXLen; cx++) {
+//                            mfq.queueChunkLoad(cx, cz, new RunnableVal() {
+//                                @Override
+//                                public void run(Object chunk) {
+//                                    todo
+//                                }
+//                            });
+//                        }
+//                    }
+//                }
+        }
+
+
         for (int z = 0; z < height; ++z) {
             int zr = z + originZ;
             for (int x = 0; x < width; ++x) {
                 int curHeight = this.data[index];
+                if (this.invalid != null && this.invalid[index]) continue;
                 int newHeight = Math.min(maxY4, data[index++]);
                 int curBlock = (curHeight) >> 3;
                 int newBlock = (newHeight + 7) >> 3;
@@ -209,12 +243,10 @@ public class HeightMap {
                 }
             }
         }
-
         return blocksChanged;
     }
 
     public int apply(int[] data) throws WorldEditException {
-        long start = System.currentTimeMillis();
         checkNotNull(data);
 
         Vector minY = region.getMinimumPoint();
@@ -233,9 +265,11 @@ public class HeightMap {
         int index = 0;
         for (int z = 0; z < height; ++z) {
             int zr = z + originZ;
-            for (int x = 0; x < width; ++x) {
+            for (int x = 0; x < width; ++x, index++) {
                 int curHeight = this.data[index];
-                int newHeight = Math.min(maxY, data[index++]);
+                if (this.invalid != null && this.invalid[index]) continue;
+                int newHeight = Math.min(maxY, data[index]);
+
                 int xr = x + originX;
 
                 // Depending on growing or shrinking we need to start at the bottom or top
