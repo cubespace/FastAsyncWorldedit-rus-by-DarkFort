@@ -23,6 +23,16 @@ public class NullRelighter implements Relighter {
     }
 
     @Override
+    public void clear() {
+
+    }
+
+    @Override
+    public void removeLighting() {
+
+    }
+
+    @Override
     public void fixBlockLighting() {
 
     }

@@ -1,2 +1,7 @@
 rootProject.name = 'FastAsyncWorldEdit'
+<<<<<<< HEAD
 include 'core', 'bukkit', 'favs'
+=======
+
+include 'core', 'bukkit', 'favs', 'nukkit', 'forge1710', 'forge189', 'forge194', 'forge110', 'forge111', 'sponge112', 'forge112', 'sponge111'
+>>>>>>> ea63c77d7e0797978f3ca3b5df9587c55f745d4e

@@ -353,10 +353,16 @@ public class Settings extends Config {
         public int INTERVAL = 20;
         @Comment("Max falling blocks per interval (per chunk)")
         public int FALLING = 64;
-        @Comment("Max physics per interval (per chunk)")
-        public int PHYSICS = 256;
+        @Comment("Max physics per interval (excluding redstone)")
+        public int PHYSICS_MS = 10;
         @Comment("Max item spawns per interval (per chunk)")
         public int ITEMS = 256;
+        @Comment({
+                "Whether fireworks can load chunks",
+                " - Fireworks usually travel vertically so do not load any chunks",
+                " - Horizontal fireworks can be hacked in to crash a server"
+        })
+        public boolean FIREWORKS_LOAD_CHUNKS = false;
     }
 
     public static class CLIPBOARD {
@@ -388,9 +394,11 @@ public class Settings extends Config {
                 "The relighting mode to use:",
                 " - 0 = None (Do no relighting)",
                 " - 1 = Optimal (Relight changed light sources and changed blocks)",
-                " - 2 = All (Slowly relight every blocks)"
+                " - 2 = All (Slowly relight every blocks)",
         })
         public int MODE = 1;
+        @Comment({"If existing lighting should be removed before relighting"})
+        public boolean REMOVE_FIRST = false;
     }
 
     public void reload(File file) {

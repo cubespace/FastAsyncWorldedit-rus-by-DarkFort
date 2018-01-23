@@ -4,8 +4,10 @@ import com.boydti.fawe.Fawe;
 import com.boydti.fawe.IFawe;
 import com.boydti.fawe.bukkit.chat.BukkitChatManager;
 import com.boydti.fawe.bukkit.listener.BrushListener;
+import com.boydti.fawe.bukkit.listener.BukkitImageListener;
 import com.boydti.fawe.bukkit.listener.CFIPacketListener;
 import com.boydti.fawe.bukkit.listener.RenderListener;
+import com.boydti.fawe.bukkit.regions.ASkyBlockHook;
 import com.boydti.fawe.bukkit.regions.FactionsFeature;
 import com.boydti.fawe.bukkit.regions.FactionsOneFeature;
 import com.boydti.fawe.bukkit.regions.FactionsUUIDFeature;
@@ -15,16 +17,17 @@ import com.boydti.fawe.bukkit.regions.PreciousStonesFeature;
 import com.boydti.fawe.bukkit.regions.ResidenceFeature;
 import com.boydti.fawe.bukkit.regions.TownyFeature;
 import com.boydti.fawe.bukkit.regions.Worldguard;
+import com.boydti.fawe.bukkit.util.BukkitReflectionUtils;
 import com.boydti.fawe.bukkit.util.BukkitTaskMan;
 import com.boydti.fawe.bukkit.util.ItemUtil;
 import com.boydti.fawe.bukkit.util.VaultUtil;
 import com.boydti.fawe.bukkit.util.cui.CUIListener;
 import com.boydti.fawe.bukkit.util.cui.StructureCUI;
-import com.boydti.fawe.bukkit.listener.BukkitImageListener;
 import com.boydti.fawe.bukkit.util.image.BukkitImageViewer;
 import com.boydti.fawe.bukkit.v0.BukkitQueue_0;
 import com.boydti.fawe.bukkit.v0.BukkitQueue_All;
-import com.boydti.fawe.bukkit.v0.ChunkListener;
+import com.boydti.fawe.bukkit.v0.ChunkListener_8;
+import com.boydti.fawe.bukkit.v0.ChunkListener_9;
 import com.boydti.fawe.bukkit.v1_10.BukkitQueue_1_10;
 import com.boydti.fawe.bukkit.v1_11.BukkitQueue_1_11;
 import com.boydti.fawe.bukkit.v1_12.BukkitQueue_1_12;
@@ -100,6 +103,7 @@ public class FaweBukkit implements IFawe, Listener {
     public FaweBukkit(BukkitMain plugin) {
         this.plugin = plugin;
         try {
+            Settings.IMP.TICK_LIMITER.ENABLED = !Bukkit.hasWhitelist();
             Fawe.set(this);
             setupInjector();
             try {
@@ -147,7 +151,12 @@ public class FaweBukkit implements IFawe, Listener {
                 Bukkit.getPluginManager().registerEvents(FaweBukkit.this, FaweBukkit.this.plugin);
 
                 // The tick limiter
-                new ChunkListener();
+                try {
+                    Class.forName("sun.misc.SharedSecrets");
+                    new ChunkListener_8();
+                } catch (ClassNotFoundException e) {
+                    new ChunkListener_9();
+                }
             }
         });
     }
@@ -366,7 +375,7 @@ public class FaweBukkit implements IFawe, Listener {
     public FaweQueue getNewQueue(String world, boolean fast) {
         if (playerChunk != (playerChunk = true)) {
             try {
-                Field fieldDirtyCount = ReflectionUtils.getRefClass("{nms}.PlayerChunk").getField("dirtyCount").getRealField();
+                Field fieldDirtyCount = BukkitReflectionUtils.getRefClass("{nms}.PlayerChunk").getField("dirtyCount").getRealField();
                 fieldDirtyCount.setAccessible(true);
                 int mod = fieldDirtyCount.getModifiers();
                 if ((mod & Modifier.VOLATILE) == 0) {
@@ -419,7 +428,7 @@ public class FaweBukkit implements IFawe, Listener {
         if (fast) {
             if (playerChunk != (playerChunk = true)) {
                 try {
-                    Field fieldDirtyCount = ReflectionUtils.getRefClass("{nms}.PlayerChunk").getField("dirtyCount").getRealField();
+                    Field fieldDirtyCount = BukkitReflectionUtils.getRefClass("{nms}.PlayerChunk").getField("dirtyCount").getRealField();
                     fieldDirtyCount.setAccessible(true);
                     int mod = fieldDirtyCount.getModifiers();
                     if ((mod & Modifier.VOLATILE) == 0) {
@@ -552,6 +561,18 @@ public class FaweBukkit implements IFawe, Listener {
                 MainUtil.handleError(e);
             }
         }
+
+
+        final Plugin aSkyBlock = Bukkit.getServer().getPluginManager().getPlugin("ASkyBlock");
+        if ((aSkyBlock != null) && aSkyBlock.isEnabled()) {
+            try {
+                managers.add(new ASkyBlockHook(aSkyBlock, this));
+                Fawe.debug("Plugin 'ASkyBlock' found. Using it now.");
+            } catch (final Throwable e) {
+                MainUtil.handleError(e);
+            }
+        }
+
         return managers;
     }
 //

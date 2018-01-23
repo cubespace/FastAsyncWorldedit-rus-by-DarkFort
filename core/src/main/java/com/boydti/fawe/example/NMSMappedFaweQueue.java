@@ -1,7 +1,6 @@
 package com.boydti.fawe.example;
 
 import com.boydti.fawe.FaweCache;
-import com.boydti.fawe.config.Settings;
 import com.boydti.fawe.object.FaweChunk;
 import com.boydti.fawe.util.MainUtil;
 import com.boydti.fawe.util.TaskManager;
@@ -42,13 +41,17 @@ public abstract class NMSMappedFaweQueue<WORLD, CHUNK, CHUNKSECTION, SECTION> ex
             TaskManager.IMP.async(new Runnable() {
                 @Override
                 public void run() {
-                    getRelighter().fixLightingSafe(hasSky());
+                    if (getSettings().IMP.LIGHTING.REMOVE_FIRST) {
+                        getRelighter().removeAndRelight(hasSky());
+                    } else {
+                        getRelighter().fixLightingSafe(hasSky());
+                    }
                 }
             });
         }
     }
 
-    private final Relighter relighter = Settings.IMP.LIGHTING.MODE > 0 ? new NMSRelighter(this) : NullRelighter.INSTANCE;
+    private final Relighter relighter = getSettings().IMP.LIGHTING.MODE > 0 ? new NMSRelighter(this) : NullRelighter.INSTANCE;
 
     @Override
     public Relighter getRelighter() {
@@ -58,14 +61,14 @@ public abstract class NMSMappedFaweQueue<WORLD, CHUNK, CHUNKSECTION, SECTION> ex
     @Override
     public void end(FaweChunk chunk) {
         super.end(chunk);
-        if (Settings.IMP.LIGHTING.MODE == 0) {
+        if (getSettings().IMP.LIGHTING.MODE == 0) {
             sendChunk(chunk);
             return;
         }
-        if (!Settings.IMP.LIGHTING.DELAY_PACKET_SENDING) {
+        if (!getSettings().IMP.LIGHTING.DELAY_PACKET_SENDING) {
             sendChunk(chunk);
         }
-        if (Settings.IMP.LIGHTING.MODE == 2) {
+        if (getSettings().IMP.LIGHTING.MODE == 2) {
             getRelighter().addChunk(chunk.getX(), chunk.getZ(), null, chunk.getBitMask());
             return;
         }
@@ -91,7 +94,7 @@ public abstract class NMSMappedFaweQueue<WORLD, CHUNK, CHUNKSECTION, SECTION> ex
         }
         if (relight) {
             getRelighter().addChunk(chunk.getX(), chunk.getZ(), fix, chunk.getBitMask());
-        } else if (Settings.IMP.LIGHTING.DELAY_PACKET_SENDING) {
+        } else if (getSettings().IMP.LIGHTING.DELAY_PACKET_SENDING) {
             sendChunk(chunk);
         }
     }
@@ -109,7 +112,18 @@ public abstract class NMSMappedFaweQueue<WORLD, CHUNK, CHUNKSECTION, SECTION> ex
 
     public abstract void setFullbright(CHUNKSECTION sections);
 
-    public abstract boolean removeLighting(CHUNKSECTION sections, RelightMode mode, boolean hasSky);
+    public boolean removeLighting(CHUNKSECTION sections, RelightMode mode, boolean hasSky) {
+        boolean result = false;
+        for (int i = 0; i < 16; i++) {
+            SECTION section = getCachedSection(sections, i);
+            if (section != null) {
+                result |= removeSectionLighting(section, i, hasSky);
+            }
+        }
+        return result;
+    }
+
+    public abstract boolean removeSectionLighting(SECTION sections, int layer, boolean hasSky);
 
     public boolean isSurrounded(final char[][] sections, final int x, final int y, final int z) {
         return this.isSolid(this.getId(sections, x, y + 1, z))

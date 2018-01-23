@@ -6,6 +6,7 @@ import com.boydti.fawe.object.FaweChunk;
 import com.boydti.fawe.object.FaweQueue;
 import com.boydti.fawe.object.IntegerTrio;
 import com.boydti.fawe.object.RunnableVal;
+import com.boydti.fawe.object.collection.BlockVectorSet;
 import com.boydti.fawe.util.MathMan;
 import com.boydti.fawe.util.TaskManager;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -40,6 +41,7 @@ public class NMSRelighter implements Relighter {
     public final IntegerTrio mutableBlockPos = new IntegerTrio();
 
     private static final int DISPATCH_SIZE = 64;
+    private boolean removeFirst;
 
     public NMSRelighter(NMSMappedFaweQueue queue) {
         this.queue = queue;
@@ -53,6 +55,13 @@ public class NMSRelighter implements Relighter {
     @Override
     public boolean isEmpty() {
         return skyToRelight.isEmpty() && lightQueue.isEmpty() && queuedSkyToRelight.isEmpty() && concurrentLightQueue.isEmpty();
+    }
+
+    @Override
+    public synchronized void removeAndRelight(boolean sky) {
+        removeFirst = true;
+        fixLightingSafe(sky);
+        removeFirst = false;
     }
 
     private void set(int x, int y, int z, long[][][] map) {
@@ -90,6 +99,14 @@ public class NMSRelighter implements Relighter {
             }
             set(x & 15, y, z & 15, currentMap);
         }
+    }
+
+    public synchronized void clear() {
+        queuedSkyToRelight.clear();
+        skyToRelight.clear();
+        chunksToSend.clear();
+        lightQueue.clear();
+        concurrentLightQueue.clear();
     }
 
     public boolean addChunk(int cx, int cz, byte[] fix, int bitmask) {
@@ -372,6 +389,23 @@ public class NMSRelighter implements Relighter {
 
     private void fixSkyLighting(List<RelightSkyEntry> sorted) {
         RelightSkyEntry[] chunks = sorted.toArray(new RelightSkyEntry[sorted.size()]);
+        boolean remove = this.removeFirst;
+        BlockVectorSet chunkSet = null;
+        if (remove) {
+            chunkSet = new BlockVectorSet();
+            BlockVectorSet tmpSet = new BlockVectorSet();
+            for (RelightSkyEntry chunk : chunks) {
+                tmpSet.add(chunk.x, 0, chunk.z);
+            }
+            for (RelightSkyEntry chunk : chunks) {
+                int x = chunk.x;
+                int z = chunk.z;
+                if (tmpSet.contains(x + 1, 0, z) && tmpSet.contains(x - 1, 0, z) && tmpSet.contains(x, 0, z + 1) && tmpSet.contains(x, 0, z - 1)) {
+                    chunkSet.add(x, 0, z);
+                }
+            }
+        }
+
         byte[] cacheX = FaweCache.CACHE_X[0];
         byte[] cacheZ = FaweCache.CACHE_Z[0];
         for (int y = FaweChunk.HEIGHT - 1; y > 0; y--) {
@@ -392,6 +426,11 @@ public class NMSRelighter implements Relighter {
                 Object section = queue.getCachedSection(sections, layer);
                 if (section == null) continue;
                 chunk.smooth = false;
+
+                if (remove && (y & 15) == 15 && chunkSet.contains(chunk.x, 0, chunk.z)) {
+                    queue.removeSectionLighting(section, y >> 4, true);
+                }
+
                 for (int j = 0; j <= maxY; j++) {
                     int x = cacheX[j];
                     int z = cacheZ[j];

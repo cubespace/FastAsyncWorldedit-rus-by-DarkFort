@@ -20,6 +20,10 @@ gradle.log
 /forge1710/build
 /sponge/build
 /sponge111/build
+/bukkit/out
+/nukkit/out
+/sponge112/build
+/core/out
 /bukkit/build
 /bukkit0/build
 /bukkit19/build
@@ -37,4 +41,7 @@ core/src/main/java/com/sk89q/worldedit/util/command/parametric/ParametricCallabl
 =======
 *.iml
 /obj
+<<<<<<< HEAD
 >>>>>>> 274bc6d9a768819b347e2a3d502bbed1909bfcfc
+=======
+>>>>>>> ea63c77d7e0797978f3ca3b5df9587c55f745d4e
